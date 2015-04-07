@@ -99,7 +99,7 @@ def main():
     ch = logging.StreamHandler()
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch.setFormatter(formatter)
-    fh = logging.FileHandler(os.path.join(results.destdir[0], 'log.txt'))
+    fh = logging.FileHandler(os.path.join(results.destdir, 'log.txt'))
     fh.setFormatter(formatter)
     l.addHandler(ch)
     l.addHandler(fh)
