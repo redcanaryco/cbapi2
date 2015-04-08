@@ -194,6 +194,8 @@ class CbDocument(object):
         out = self._attribute(attrname)
         if out:
             return out
+        else:
+            raise AttributeError("'%s' object has no attribute '%s'" % (type(self).__name__, attrname))
 
     def _attribute(self, attrname, default=None):
         if self.info.has_key(attrname):
@@ -211,7 +213,7 @@ class CbDocument(object):
     def __unicode__(self):
         ret = '%s:\n' % self.document_type
         ret += u'\n'.join(['%-20s : %s' %
-                           (a, unicode(self.__getattribute__(a))) for a in self.stat_titles])
+                           (a, unicode(getattr(self, a))) for a in self.stat_titles])
 
         return ret
 
@@ -248,11 +250,10 @@ class CbSensor(CbDocument):
         super(CbSensor,self).__init__(cb)
         self.id = int(sensor_id)
         self.document_type = 'Cb Sensor Document'
-        self.stat_titles.extend(['hostname', 'build', 'clock_delta'])
+        self.stat_titles.extend(['hostname', 'build_version_string', 'clock_delta'])
 
         if initial_data:
             self.info = dict(initial_data)
-            self.full_init = True
 
     def _retrieve_cb_info(self):
         self.info = self.cb._sensor_info(self.id)
