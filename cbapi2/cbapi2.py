@@ -204,7 +204,8 @@ class CbDocument(object):
             # full_init. TODO: add this to quirks when this is fixed by Cb.
             if attrname == 'parent_unique_id' and not self.full_init:
                 self._retrieve_cb_info()
-            return self.info[attrname]
+            else:
+                return self.info[attrname]
 
         if not self.full_init:
             # fill in info from Cb
