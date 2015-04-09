@@ -908,7 +908,7 @@ class MultiCbApi2(object):
 class CbApi2(object):
     def __init__(self, url, api_token, ssl_verify=True, retry_count=5, debug=False, proxy=None):
 
-        if not url.startswith('http://') and not url.startswith('https://'):
+        if not url.startswith(('http://', 'https://')):
             raise Exception("Malformed URL")
 
         self.url = url.rstrip('/')
