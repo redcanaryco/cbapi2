@@ -199,6 +199,11 @@ class CbDocument(object):
 
     def _attribute(self, attrname, default=None):
         if self.info.has_key(attrname):
+            # workaround for Cb where parent_unique_id is returned as null
+            # string as part of a query result. in this case we need to do a
+            # full_init. TODO: add this to quirks when this is fixed by Cb.
+            if attrname == 'parent_unique_id' and not self.full_init:
+                self._retrieve_cb_info()
             return self.info[attrname]
 
         if not self.full_init:
