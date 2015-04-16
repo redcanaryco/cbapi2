@@ -610,6 +610,12 @@ class CbProcess(CbDocument):
     def start(self):
         return convert_from_solr(self._attribute('start', -1))
 
+    # This will make CbProcesses able to be sorted alongside events, based on
+    # the start time of the process
+    @property
+    def timestamp(self):
+        return self.start
+
     @property
     def hostname(self):
         return self._attribute('hostname', '')
