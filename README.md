@@ -117,9 +117,6 @@ get the process document itself. CbApi2 will not retrieve the full process docum
 
 ## Known Issues
 
-* Process ID calculation can get confused when there are a mixture of 4.1 sensor and 4.2+ sensor IDs in the same
-  data set (4.1 sensor process IDs are 64-bit signed integers while 4.2+ sensor generated process IDs are a 
-  GUID string)
 * Sensor document objects work *almost* but not quite the same as binary and process documents. Notably, `sensor_search`
   will not return a query object but rather directly yields the results back to the caller.
 * More documentation!
