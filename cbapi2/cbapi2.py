@@ -519,7 +519,11 @@ class CbDocumentQuery(object):
         return self._count()
 
     def sort(self, new_sort):
-        self.sort_by = new_sort
+        new_sort = new_sort.strip()
+        if len(new_sort) == 0:
+            self.sort_by = None
+        else:
+            self.sort_by = new_sort
         return self
 
     def _query(self, start=0, numrows=0):
