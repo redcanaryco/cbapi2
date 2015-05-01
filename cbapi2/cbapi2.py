@@ -38,6 +38,29 @@ logging.getLogger('co.redcanary.cbapi2').addHandler(logging.NullHandler())
 requests.packages.urllib3.disable_warnings()
 
 
+windows_rights_dict = {
+    0x00100000L: 'SYNCHRONIZE',
+    0x00080000L: 'WRITE_OWNER',
+    0x00040000L: 'WRITE_DAC',
+    0x00020000L: 'READ_CONTROL',
+    0x00010000L: 'DELETE',
+    0x00000001L: 'PROCESS_TERMINATE',
+    0x00000002L: 'PROCESS_CREATE_THREAD',
+    0x00000004L: 'PROCESS_SET_SESSIONID',
+    0x00000008L: 'PROCESS_VM_OPERATION',
+    0x00000010L: 'PROCESS_VM_READ',
+    0x00000020L: 'PROCESS_VM_WRITE',
+    0x00000040L: 'PROCESS_DUP_HANDLE',
+    0x00000080L: 'PROCESS_CREATE_PROCESS',
+    0x00000100L: 'PROCESS_SET_QUOTA',
+    0x00000200L: 'PROCESS_SET_INFORMATION',
+    0x00000400L: 'PROCESS_QUERY_INFORMATION',
+    0x00000800L: 'PROCESS_SUPEND_RESUME',
+    0x00001000L: 'PROCESS_QUERY_LIMITED_INFORMATION'
+}
+r_windows_rights_dict = dict((value, key) for key, value in windows_rights_dict.iteritems())
+
+
 class CbAPIError(Exception):
     def __init__(self, r):
         self.request = r
@@ -173,6 +196,31 @@ class CbChildProcEvent(CbEvent):
     @property
     def proc(self):
         return getProcessById(self.parent.cb, self.procguid, 1)
+
+
+class CbCrossProcEvent(CbEvent):
+    def __init__(self, parent_process, timestamp, sequence, event_data):
+        super(CbCrossProcEvent,self).__init__(parent_process, timestamp, sequence, event_data)
+        self.event_type = u'Cb Cross Process event'
+        self.stat_titles.extend(['type', 'privileges', 'target_md5', 'target_path'])
+
+    @property
+    def target_proc(self):
+        return getProcessById(self.parent.cb, self.target_procguid, 1)
+
+    def has_permission(self, perm):
+        if perm in r_windows_rights_dict:
+            if (self.privilege_code & r_windows_rights_dict[perm]) == r_windows_rights_dict[perm]:
+                return True
+            else:
+                return False
+        raise KeyError(perm)
+
+    def has_permissions(self, perms):
+        for perm in perms:
+            if not self.has_permission(perm):
+                return False
+        return True
 
 
 class CbDocument(object):
@@ -691,6 +739,13 @@ class CbProcess(CbDocument):
             i += 1
 
     @property
+    def crossprocs(self):
+        i = 0
+        for raw_crossproc in self._attribute('crossproc_complete', []):
+            yield self._parse_crossproc(i, raw_crossproc)
+            i += 1
+
+    @property
     def sensor(self):
         # TODO: the CbSensor is currently not cached, so this causes a RTT to the Cb server every time.
         return getSensorById(self.cb, int(self._attribute('sensor_id', 0)))
@@ -711,6 +766,45 @@ class CbProcess(CbDocument):
             return old_style_id
         else:
             return new_style_id
+
+    def _parse_crossproc(self, seq, raw_crossproc):
+        def _lookup_privilege(privilege_code):
+            if privilege_code == 0x1FFFFF:
+                return 'PROCESS_ALL_ACCESS'
+            elif privilege_code == 0x001F0000L:
+                return 'STANDARD_RIGHTS_ALL'
+            elif privilege_code == 0x000F0000L:
+                return 'STANDARD_RIGHTS_REQUIRED'
+            elif privilege_code == 0x00020000L:
+                return 'STANDARD_RIGHTS_READ'
+
+            # for the rest, then add "or" for each component.
+            components = []
+            for element in windows_rights_dict.keys():
+                if (privilege_code & element) == element:
+                    components.append(windows_rights_dict[element])
+
+            return " | ".join(components)
+
+        parts = raw_crossproc.split('|')
+        new_crossproc = {}
+        timestamp = datetime.strptime(parts[1], cb_datetime_format)
+
+        # Types currently supported: RemoteThread and ProcessOpen
+        new_crossproc['type'] = parts[0]
+        new_crossproc['target_procguid'] = parts[2]
+        new_crossproc['target_md5'] = parts[3]
+        new_crossproc['target_path'] = parts[4]
+
+        # subtype is only valid for ProcessOpen
+        if new_crossproc['type'] == 'ProcessOpen' and int(parts[5]) == 2:
+            # this is a thread open not a process open
+            new_crossproc['type'] = 'ThreadOpen'
+
+        new_crossproc['privileges'] = _lookup_privilege(int(parts[6]))
+        new_crossproc['privilege_code'] = int(parts[6])
+
+        return CbCrossProcEvent(self, timestamp, seq, new_crossproc)
 
     def _parse_modload(self, seq, raw_modload):
         parts = raw_modload.split('|')
