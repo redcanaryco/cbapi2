@@ -149,6 +149,10 @@ class CbEvent(object):
     def __str__(self):
         return self.__unicode__().encode('utf-8')
 
+    @property
+    def tamper_event(self):
+        return getattr(self, 'tamper_flag', False)
+
 
 class CbModLoadEvent(CbEvent):
     def __init__(self, parent_process, timestamp, sequence, event_data, binary_data=None):
@@ -757,7 +761,11 @@ class CbProcess(CbDocument):
     @property
     def all_events(self):
         return sorted(list(self.modloads) + list(self.netconns) + list(self.filemods) + \
-                      list(self.children) + list(self.regmods))
+                      list(self.children) + list(self.regmods) + list(self.crossprocs))
+
+    @property
+    def tamper_events(self):
+        return [e for e in self.all_events if e.tamper_event]
 
     def get_correct_unique_id(self, old_style_id, new_style_id):
         # this is required for the new 4.2 style GUIDs...
@@ -807,6 +815,10 @@ class CbProcess(CbDocument):
             privilege = 0
         new_crossproc['privileges'] = _lookup_privilege(privilege)
         new_crossproc['privilege_code'] = privilege
+
+        new_crossproc['tamper_flag'] = False
+        if parts[7] == 'true':
+            new_crossproc['tamper_flag'] = True
 
         return CbCrossProcEvent(self, timestamp, seq, new_crossproc)
 
@@ -880,6 +892,10 @@ class CbProcess(CbDocument):
         if len(parts) > 4 and parts[4] != '':
             new_file['filetype'] = _lookup_filetype(int(parts[4]))
 
+        new_file['tamper_flag'] = False
+        if len(parts) > 5 and parts[5] == 'true':
+            new_file['tamper_flag'] = True
+
         return CbFileModEvent(self, timestamp, seq, new_file)
 
     def _parse_netconn(self, seq, netconn):
@@ -931,6 +947,10 @@ class CbProcess(CbDocument):
         new_regmod['type'] = _lookup_type(int(parts[0]))
         new_regmod['path'] = parts[2]
 
+        new_regmod['tamper_flag'] = False
+        if len(parts) > 3 and parts[3] == 'true':
+            new_regmod['tamper_flag'] = True
+
         return CbRegModEvent(self, timestamp, seq, new_regmod)
 
     def _parse_childproc(self, seq, childproc):
@@ -941,7 +961,15 @@ class CbProcess(CbDocument):
         new_childproc['md5'] = parts[2]
         new_childproc['path'] = parts[3]
         new_childproc['pid'] = parts[4]
-        # TODO: what is the fifth field?
+
+        # TODO: better handling of process start/terminate
+        new_childproc['terminated'] = False
+        if parts[5] == 'true':
+            new_childproc['terminated'] = True
+
+        new_childproc['tamper_flag'] = False
+        if len(parts) > 6 and parts[6] == 'true':
+            new_childproc['tamper_flag'] = True
 
         return CbChildProcEvent(self, timestamp, seq, new_childproc)
 
