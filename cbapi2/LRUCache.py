@@ -203,7 +203,7 @@ class LRUCache(object):
 class lrumemoized(object):
     def __init__(self, func):
         self.func = func
-        maxSize = 100
+        maxSize = 1000
         maxAgeMs = 60000
         self.cache = LRUCache(maxSize, maxAgeMs)
 

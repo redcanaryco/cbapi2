@@ -703,14 +703,14 @@ class CbProcess(CbDocument):
 
     @property
     def binary(self):
-        binary_md5 = self._attribute('process_md5')
-        return getBinaryByMd5(self.cb, binary_md5)
+        binary_md5 = self._attribute('process_md5', None)
+        if not binary_md5 or binary_md5 == '00000000000000000000000000000000':
+            return None
+        else:
+            return getBinaryByMd5(self.cb, binary_md5)
 
     @property
     def parent(self):
-        # TODO: the logic here is still not working properly 100% of the time on Cb 4.2 servers.
-        # sometimes this will pick the "older" ID improperly.
-
         parent_unique_id = self._attribute('parent_unique_id', None)
         parent_id = self._attribute('parent_id', None)
 
@@ -801,8 +801,12 @@ class CbProcess(CbDocument):
             # this is a thread open not a process open
             new_crossproc['type'] = 'ThreadOpen'
 
-        new_crossproc['privileges'] = _lookup_privilege(int(parts[6]))
-        new_crossproc['privilege_code'] = int(parts[6])
+        try:
+            privilege = int(parts[6])
+        except ValueError:
+            privilege = 0
+        new_crossproc['privileges'] = _lookup_privilege(privilege)
+        new_crossproc['privilege_code'] = privilege
 
         return CbCrossProcEvent(self, timestamp, seq, new_crossproc)
 
