@@ -1178,7 +1178,7 @@ class CbApi2(object):
 
     ### LOW LEVEL ACCESS ###
     def _process_events(self, procid, segment=1):
-        if type(procid) == int:
+        if type(procid) == int or type(procid) == long:
             r = self._do_request('/api/v1/process/{0:d}/{1:d}/event'.format(procid, segment))
         else:
             r = self._do_request('/api/v1/process/{0:s}/{1:d}/event'.format(procid, segment))
