@@ -1310,10 +1310,11 @@ def from_ui(uri, apitoken, ssl_verify=True, retry_count=5):
     return cb.from_ui(uri)
 
 
-def write_event_csv(all_events, fp):
+def write_event_csv(all_events, fp, header_row=True):
     eventwriter = csv.writer(fp)
-
-    eventwriter.writerow(['ProcessPath', 'Timestamp', 'Event', 'Path/IP/Domain', 'Comments'])
+    
+    if header_row == True:
+        eventwriter.writerow(['ProcessPath', 'Timestamp', 'Event', 'Path/IP/Domain', 'Comments'])
 
     for event in all_events:
         if type(event) == CbFileModEvent:
